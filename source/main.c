@@ -46,7 +46,6 @@ static void video_init(void)
 int main(int argc, char **argv)
 {
     u8 p1[8];
-    u8 p2[8];
 
     // Initialize system
     SYS_Init();
@@ -67,7 +66,7 @@ int main(int argc, char **argv)
     {
 
         /*
-         * Read two GC ports.
+         * Read one GC port.
          *
          * Each port provides
          * one 8-byte latch.
@@ -78,16 +77,10 @@ int main(int argc, char **argv)
             p1
         );
 
-
-        gcsi_read(
-            1,
-            p2
-        );
-
         /*
-         * Submit audio data
+         * Submit audio data from single port
          */
-        audio_submit_ports(p1, p2);
+        audio_submit_single_port(p1);
 
         /*
          * Wait for vsync

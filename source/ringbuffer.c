@@ -19,7 +19,7 @@ int fifo_write(u8 *data, int len)
         if (count >= FIFO_SIZE)
             break;
 
-        fifo[wpos++] = (s16)(data[i] - 128);
+        fifo[wpos++] = (s16)(data[i] - 128) * 256;
         count++;
         written++;
 

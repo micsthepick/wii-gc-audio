@@ -9,20 +9,19 @@
 #define AUDIO_SAMPLES 512
 static s16 audio_buffer[AUDIO_SAMPLES * 2] __attribute__((aligned(32)));
 
-void audio_submit_ports(const u8 *p1, const u8 *p2)
+void audio_submit_single_port(const u8 *port_data)
 {
     /*
-     * Combine two 8-byte ports into one 16-byte audio block
+     * TAStm32 should send actual audio latch data, not controller inputs
+     * The audio latch contains 8 bytes of audio samples from one port
      */
-    u8 frame[16];
+    u8 audio_data[8];
 
-    memcpy(frame, p1, 8);
-    memcpy(frame + 8, p2, 8);
+    /* Copy the received audio data */
+    memcpy(audio_data, port_data, 8);
 
-    /*
-     * Feed FIFO with raw byte data (will be converted to signed 16-bit samples)
-     */
-    fifo_write(frame, 16);
+    /* Feed FIFO with audio data */
+    fifo_write(audio_data, 8);
 }
 
 static void audio_fill_buffer(void)

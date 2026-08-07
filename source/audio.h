@@ -4,6 +4,6 @@
 #include <gccore.h>
 
 void audio_init(void);
-void audio_submit_ports(const u8 *p1, const u8 *p2);
+void audio_submit_single_port(const u8 *port_data);
 
 #endif
