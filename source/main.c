@@ -1,8 +1,7 @@
 #include <gccore.h>
+#include <ogc/si.h>
 #include <stdio.h>
-#include <string.h>
 
-#include "gcsi.h"
 #include "audio.h"
 #include "ringbuffer.h"
 
@@ -29,57 +28,57 @@ static void video_init(void)
     );
 
     VIDEO_Configure(rmode);
-
     VIDEO_SetNextFramebuffer(xfb);
-
     VIDEO_SetBlack(FALSE);
-
     VIDEO_Flush();
-
     VIDEO_WaitVSync();
 
     if (rmode->viTVMode & VI_NON_INTERLACE)
         VIDEO_WaitVSync();
 }
 
+static void si_poll_handler(u32 chan, void *data)
+{
+    if (chan != 0)
+        return;
+
+    fifo_write((const u8 *)data, 8);
+}
+
+static void si_init(void)
+{
+    u8 dummy[8];
+
+    SI_GetResponse(0, dummy);
+
+    SI_SetCommand(0, 0x00400300);
+    SI_SetSamplingRate(4000);
+    SI_EnablePolling(0x80000000);
+
+    SI_RegisterPollingHandler(si_poll_handler);
+    SI_EnablePollingInterrupt(1);
+
+    SI_TransferCommands();
+}
 
 int main(int argc, char **argv)
 {
-    u8 p1[8];
-
-    // Initialize system
     SYS_Init();
     PAD_Init();
 
     video_init();
 
-
     printf("GC audio streamer\n");
-
 
     fifo_init();
     audio_init();
+    si_init();
 
-
-    while(SYS_MainLoop())
+    while (SYS_MainLoop())
     {
-
         /*
-         * Read one GC port.
-         *
-         * Each port provides
-         * one 8-byte latch.
+         * SI and audio DMA are interrupt-driven.
          */
-
-        gcsi_read(
-            0,
-            p1
-        );
-
-        /*
-         * Submit audio data from single port
-         */
-        audio_submit_single_port(p1);
     }
 
     return 0;
