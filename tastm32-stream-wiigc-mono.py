@@ -51,7 +51,6 @@ print(bytes(cmd))
 
 # set up the WII(GC port) correctly
 ser.write(b'SAG\x80\x00')
-print('out: ', b'SAG\x80\x00')
 
 time.sleep(0.1)
 cmd = ser.read(2)
@@ -59,20 +58,15 @@ print(bytes(cmd))
 
 # bulk data mode
 ser.write(b'QA1')
-print('out: ', b'QA1')
 time.sleep(0.1)
 
 ser.ser.reset_input_buffer() # clear anything that might be sitting on the serial line at the moment
 
 # seed it with an arbitrary first frame of data to get the run to be initialized
 ser.write(bytes([65,0,0,0,0,0,0,0,0]))
-print('out: ', bytes([65,0,0,0,0,0,0,0,0]))
 
 while True:
     c = ser.read(1) # keep this loop as tight as possible
-
-    if DEBUG:
-        print(c)
 
     if c.count(b'\xB0'): # this should not ever occur based on the protocol
         print("overflow!")
