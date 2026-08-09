@@ -23,7 +23,7 @@ int gcsi_read(int port, u8 *out)
        0x00
     */
 
-    command[0] = 0x41;
+    command[0] = 0x40;
     command[1] = 0x00;
     command[2] = 0x00;
 
