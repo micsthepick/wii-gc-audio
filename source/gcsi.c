@@ -11,18 +11,6 @@ static void si_callback(s32 chan, u32 type)
     transfer_done = 1;
 }
 
-
-void gcsi_init(void)
-{
-    transfer_done = 0;
-
-    /*
-     * SI is already initialised by libogc.
-     * No SI_Init() exists in current libogc.
-     */
-}
-
-
 int gcsi_read(int port, u8 *out)
 {
     u8 command[3];

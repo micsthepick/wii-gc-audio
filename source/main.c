@@ -57,7 +57,6 @@ int main(int argc, char **argv)
     printf("GC audio streamer\n");
 
 
-    gcsi_init();
     fifo_init();
     audio_init();
 
@@ -81,13 +80,6 @@ int main(int argc, char **argv)
          * Submit audio data from single port
          */
         audio_submit_single_port(p1);
-
-        /*
-         * Wait for vsync
-         */
-        VIDEO_WaitVSync();
-        VIDEO_SetNextFramebuffer(xfb);
-        VIDEO_Flush();
     }
 
     return 0;
