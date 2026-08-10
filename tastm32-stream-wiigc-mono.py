@@ -5,78 +5,88 @@ import argparse_helper
 import tastm32
 import psutil
 
-if(os.name == 'nt'):
+if os.name == 'nt':
     psutil.Process().nice(psutil.REALTIME_PRIORITY_CLASS)
 else:
     psutil.Process().nice(20)
 
 gc.disable()
 
-def bitswap(b):
-    b = (b&0xF0) >> 4 | (b&0x0F) << 4
-    b = (b&0xCC) >> 2 | (b&0x33) << 2
-    b = (b&0xAA) >> 1 | (b&0x55) << 1
-    return b
-
-data = None
-
 parser = argparse_helper.audio_parser()
 args = parser.parse_args()
 
 DEBUG = args.debug
 
-if args.serial == None:
-    dev = tastm32.TAStm32(serial_helper.select_serial_port())
+if args.serial is None:
+    ser = tastm32.TAStm32(serial_helper.select_serial_port())
 else:
-    dev = tastm32.TAStm32(args.serial)
+    ser = tastm32.TAStm32(args.serial)
 
-# connect to device
-ser = dev
-
-# open file
-f = sys.stdin.buffer #open(sys.argv[1], "rb")
-
-latches = 0
-
-cmd = None
-inputs = None
+f = sys.stdin.buffer
 
 print("--- Starting read loop")
 
-# reset to make sure there is no leftover data
 ser.write(b'R')
 time.sleep(0.1)
 cmd = ser.read(2)
 print(bytes(cmd))
 
-# set up the WII(GC port) correctly
 ser.write(b'SAG\x80\x00')
-
 time.sleep(0.1)
 cmd = ser.read(2)
 print(bytes(cmd))
 
-# bulk data mode
 ser.write(b'QA1')
 time.sleep(0.1)
 
-ser.ser.reset_input_buffer() # clear anything that might be sitting on the serial line at the moment
+ser.ser.reset_input_buffer()
 
-# seed it with an arbitrary first frame of data to get the run to be initialized
-ser.write(bytes([65,0,0,0,0,0,0,0,0]))
+# Seed it with an arbitrary first frame.
+ser.write(bytes([65, 0, 0, 0, 0, 0, 0, 0, 0]))
+
+
+def read_exact(n):
+    data = bytearray()
+
+    while len(data) < n:
+        chunk = f.read(n - len(data))
+        if not chunk:
+            return None
+        data.extend(chunk)
+
+    return data
+
+
+def pack_pcm4(samples):
+    return bytes((
+        (samples[1] << 4) | samples[0],
+        samples[2],
+        (samples[4] << 4) | samples[3],
+        (samples[6] << 4) | samples[5],
+        (samples[8] << 4) | samples[7],
+        (samples[10] << 4) | samples[9],
+        (samples[12] << 4) | samples[11],
+        (samples[14] << 4) | samples[13],
+    ))
+
 
 while True:
-    c = ser.read(1) # keep this loop as tight as possible
+    c = ser.read(1)
 
-    if c.count(b'\xB0'): # this should not ever occur based on the protocol
+    if c == b'\xB0':
         print("overflow!")
         continue
-    if c.count(b'a'): # we want 28 latches
-        for twice in range(4): # send 4 sets of 7 latches
-            inputs = f.read(8*7)
 
-            for i in range(0, len(inputs), 8):
-                data = b'A' + inputs[i:i+8]
-            ser.write(data)
+    if c == b'a':
+        for _ in range(28):
+            samples = read_exact(15)
 
-        ser.write(b'a') # tell the hardware that we have completed our bulk transfer
+            if samples is None:
+                sys.exit(0)
+
+            # Input is 0000xxxx, so retain only the PCM4 nibble.
+            samples = [x & 0x0f for x in samples]
+
+            ser.write(b'A' + pack_pcm4(samples))
+
+        ser.write(b'a')

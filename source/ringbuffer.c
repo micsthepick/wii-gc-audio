@@ -1,13 +1,19 @@
 #include "ringbuffer.h"
+#include "gcsi.h"
 
-static s16 fifo[FIFO_SIZE];
+#include <string.h>
 
 /*
- * Only the SI interrupt modifies wpos.
- * Only the consumer modifies rpos.
+ * FIFO_SIZE is the number of mono samples.
+ * Each entry is stored as L/R s16, so the actual array
+ * contains FIFO_SIZE * 2 s16 values.
  */
-static volatile u32 rpos;
-static volatile u32 wpos;
+static s16 fifo[FIFO_SIZE * 2];
+
+volatile u32 rpos;
+volatile u32 wpos;
+
+volatile int stalled = 0;
 
 void fifo_init(void)
 {
@@ -15,65 +21,50 @@ void fifo_init(void)
     wpos = 0;
 }
 
-int fifo_write(const u8 *data, int len)
+int fifo_write(const u8 point)
 {
-    int written = 0;
+    u32 w = wpos;
 
-    while (written < len)
-    {
-        u32 next = wpos + 1;
+    s16 sample = ((s16)point - 128) << 10;
 
-        if (next >= FIFO_SIZE)
-            next = 0;
+    fifo[(w & FIFO_MASK) * 2 + 0] = sample;
+    fifo[(w & FIFO_MASK) * 2 + 1] = sample;
 
-        /*
-         * FIFO full.
-         *
-         * Don't overwrite unread audio.
-         */
-        if (next == rpos)
-            break;
+    wpos = w + 1;
 
-        /*
-         * Convert unsigned 8-bit PCM:
-         *
-         *   0   -> -32768
-         *   128 ->      0
-         *   255 ->  32512
-         */
-        fifo[wpos] = (s16)((s32)(data[written] - 128) * 256);
-
-        wpos = next;
-        written++;
-    }
-
-    return written;
+    return 1;
 }
 
 int fifo_read(s16 *out, int samples)
 {
-    int read = 0;
+    u32 r = rpos;
+    u32 w = wpos;
+    u32 available = w - r;
 
-    while (read < samples)
-    {
-        if (rpos == wpos)
-            break;
+    if (available > FIFO_SIZE)
+        available = FIFO_SIZE;
 
-        out[read++] = fifo[rpos];
+    int actual = samples;
 
-        rpos++;
+    if ((u32)actual > available)
+        actual = available;
 
-        if (rpos >= FIFO_SIZE)
-            rpos = 0;
+    for (int i = 0; i < actual; i++) {
+        u32 pos = (r + i) & FIFO_MASK;
+
+        out[i * 2 + 0] = fifo[pos * 2 + 0];
+        out[i * 2 + 1] = fifo[pos * 2 + 1];
+
+        fifo[pos * 2 + 0] = 0;
+        fifo[pos * 2 + 1] = 0;
     }
 
-    return read;
-}
+    rpos = r + actual;
 
-int fifo_available(void)
-{
-    if (wpos >= rpos)
-        return wpos - rpos;
+    if (stalled) {
+        si_poll();
+        stalled = 0;
+    }
 
-    return FIFO_SIZE - rpos + wpos;
+    return actual;
 }

@@ -1,12 +1,26 @@
 #include <gccore.h>
-#include <ogc/si.h>
+#include <ogcsys.h>
+#include <ogc/lwp_watchdog.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <wiiuse/wpad.h>
 
+#include "gcsi.h"
 #include "audio.h"
 #include "ringbuffer.h"
 
 static void *xfb = NULL;
 static GXRModeObj *rmode = NULL;
+
+/*
+#define SI_RATE_NUM   60
+#define SI_RATE_DENOM 128000
+
+#define SI_PERIOD_TICKS \
+    (((u64)PPC_BUS_CLOCK / 4) * SI_RATE_NUM / SI_RATE_DENOM)
+*/
+
+//static int timer_offset = 0;
 
 static void video_init(void)
 {
@@ -37,30 +51,6 @@ static void video_init(void)
         VIDEO_WaitVSync();
 }
 
-static void si_poll_handler(u32 chan, void *data)
-{
-    if (chan != 0)
-        return;
-
-    fifo_write((const u8 *)data, 8);
-}
-
-static void si_init(void)
-{
-    u8 dummy[8];
-
-    SI_GetResponse(0, dummy);
-
-    SI_SetCommand(0, 0x00400300);
-    SI_SetSamplingRate(4000);
-    SI_EnablePolling(0x80000000);
-
-    SI_RegisterPollingHandler(si_poll_handler);
-    SI_EnablePollingInterrupt(1);
-
-    SI_TransferCommands();
-}
-
 int main(int argc, char **argv)
 {
     SYS_Init();
@@ -72,13 +62,18 @@ int main(int argc, char **argv)
 
     fifo_init();
     audio_init();
-    si_init();
 
-    while (SYS_MainLoop())
-    {
-        /*
-         * SI and audio DMA are interrupt-driven.
-         */
+    //u64 next_poll = gettime();
+
+    // first poll (next poll starts from cb)
+    si_poll();
+
+    while (SYS_MainLoop()) {
+        for (int i = 0; i < 100; i++) {
+            VIDEO_WaitVSync();
+        }
+
+       printf("wpos - rpos: %u \n", (u32)(wpos - rpos));
     }
 
     return 0;
