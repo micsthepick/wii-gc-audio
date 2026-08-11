@@ -56,37 +56,20 @@ def read_exact(n):
 
     return data
 
-
-def pack_pcm4(samples):
-    return bytes((
-        (samples[1] << 4) | samples[0],
-        samples[2],
-        (samples[4] << 4) | samples[3],
-        (samples[6] << 4) | samples[5],
-        (samples[8] << 4) | samples[7],
-        (samples[10] << 4) | samples[9],
-        (samples[12] << 4) | samples[11],
-        (samples[14] << 4) | samples[13],
-    ))
-
+c = b'w'
 
 while True:
+    if c == b'w':
+        for _ in range(8):
+            samples = read_exact(128)
+            if samples is None:
+                sys.exit(0)
+
+            ser.write(b'W' + samples)
+
+        ser.write(b'w')
+
     c = ser.read(1)
 
     if c == b'\xB0':
         print("overflow!")
-        continue
-
-    if c == b'a':
-        for _ in range(28):
-            samples = read_exact(15)
-
-            if samples is None:
-                sys.exit(0)
-
-            # Input is 0000xxxx, so retain only the PCM4 nibble.
-            samples = [x & 0x0f for x in samples]
-
-            ser.write(b'A' + pack_pcm4(samples))
-
-        ser.write(b'a')

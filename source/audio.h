@@ -5,4 +5,6 @@
 
 void audio_init(void);
 
+extern u32 underruns;
+
 #endif

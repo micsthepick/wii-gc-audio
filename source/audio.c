@@ -5,7 +5,9 @@
 #include <ogc/audio.h>
 #include <string.h>
 
-#define AUDIO_SAMPLES 512
+u32 underruns = 0;
+
+#define AUDIO_SAMPLES 8192
 
 static s16 audio_buffer[AUDIO_SAMPLES * 2]
     __attribute__((aligned(32)));
@@ -17,10 +19,11 @@ static void audio_fill_buffer(void)
      */
     memset(audio_buffer, 0, sizeof(audio_buffer));
 
-    fifo_read(
-        audio_buffer,
-        AUDIO_SAMPLES
-    );
+    unsigned got = fifo_read(audio_buffer, AUDIO_SAMPLES);
+
+    if (got < AUDIO_SAMPLES) {
+        underruns++;
+    }
 
     DCFlushRange(audio_buffer, sizeof(audio_buffer));
 }
@@ -28,7 +31,7 @@ static void audio_fill_buffer(void)
 void audio_init(void)
 {
     AUDIO_Init(NULL);
-    AUDIO_SetDSPSampleRate(AI_SAMPLERATE_32KHZ);
+    AUDIO_SetDSPSampleRate(AI_SAMPLERATE_48KHZ);
 
     memset(audio_buffer, 0, sizeof(audio_buffer));
     DCFlushRange(audio_buffer, sizeof(audio_buffer));

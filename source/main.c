@@ -8,19 +8,14 @@
 #include "gcsi.h"
 #include "audio.h"
 #include "ringbuffer.h"
+#include "opus_audio.h"
+#include "opus_transport.h"
+
+#define TICKS_PER_SECOND 18225000ULL
 
 static void *xfb = NULL;
 static GXRModeObj *rmode = NULL;
 
-/*
-#define SI_RATE_NUM   60
-#define SI_RATE_DENOM 128000
-
-#define SI_PERIOD_TICKS \
-    (((u64)PPC_BUS_CLOCK / 4) * SI_RATE_NUM / SI_RATE_DENOM)
-*/
-
-//static int timer_offset = 0;
 
 static void video_init(void)
 {
@@ -51,6 +46,39 @@ static void video_init(void)
         VIDEO_WaitVSync();
 }
 
+static u64 stats_time;
+
+static void print_stats(void)
+{
+    u64 now = gettime();
+
+    if (stats_time == 0) {
+        stats_time = now;
+        return;
+    }
+
+    u32 ms = diff_msec(stats_time, now);
+
+    if (ms < 5000)
+        return;
+
+    printf(
+        "SI: %.1f/s %.1f kbit/s | "
+        "Opus: %.1f/s errors=%u underruns=%u\n",
+        si_callback_count * 1000.0f / ms,
+        si_callback_count * 128 * 8.0f / ms,
+        opus_count * 1000.0f / ms,
+        opus_errors,
+        underruns
+    );
+
+    si_callback_count = 0;
+    opus_count = 0;
+    opus_errors = 0;
+    underruns = 0;
+    stats_time = now;
+}
+
 int main(int argc, char **argv)
 {
     SYS_Init();
@@ -63,17 +91,15 @@ int main(int argc, char **argv)
     fifo_init();
     audio_init();
 
-    //u64 next_poll = gettime();
+    opus_audio_init();
+    opus_transport_init();
 
     // first poll (next poll starts from cb)
     si_poll();
 
     while (SYS_MainLoop()) {
-        for (int i = 0; i < 100; i++) {
-            VIDEO_WaitVSync();
-        }
-
-       printf("wpos - rpos: %u \n", (u32)(wpos - rpos));
+        opus_transport_process();
+        print_stats();
     }
 
     return 0;

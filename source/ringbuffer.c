@@ -21,18 +21,32 @@ void fifo_init(void)
     wpos = 0;
 }
 
-int fifo_write(const u8 point)
+int fifo_write(s16 *data, int len)
 {
+    u32 r = rpos;
     u32 w = wpos;
 
-    s16 sample = ((s16)point - 128) << 10;
+    u32 used = w - r;
 
-    fifo[(w & FIFO_MASK) * 2 + 0] = sample;
-    fifo[(w & FIFO_MASK) * 2 + 1] = sample;
+    if (used > FIFO_SIZE)
+        used = FIFO_SIZE;
 
-    wpos = w + 1;
+    u32 free = FIFO_SIZE - used;
 
-    return 1;
+    int actual = len;
+    if ((u32)actual > free)
+        actual = free;
+
+    for (int i = 0; i < actual; i++) {
+        u32 pos = (w + i) & FIFO_MASK;
+
+        fifo[pos * 2 + 0] = data[i * 2 + 0];
+        fifo[pos * 2 + 1] = data[i * 2 + 1];
+    }
+
+    wpos = w + actual;
+
+    return actual;
 }
 
 int fifo_read(s16 *out, int samples)
@@ -67,4 +81,22 @@ int fifo_read(s16 *out, int samples)
     }
 
     return actual;
+}
+
+u32 fifo_count(void)
+{
+    u32 r = rpos;
+    u32 w = wpos;
+
+    u32 used = w - r;
+
+    if (used > FIFO_SIZE)
+        used = FIFO_SIZE;
+
+    return used;
+}
+
+u32 fifo_free(void)
+{
+    return FIFO_SIZE - fifo_count();
 }

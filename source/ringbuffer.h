@@ -3,7 +3,7 @@
 
 #include <gctypes.h>
 
-#define FIFO_SIZE 32768
+#define FIFO_SIZE 16384
 #define FIFO_MASK (FIFO_SIZE-1)
 
 void fifo_init(void);
@@ -14,12 +14,16 @@ void fifo_init(void);
  * Writes unsigned 8-bit samples, converting them to signed
  * 16-bit samples.
  */
-int fifo_write(const u8 point);
+int fifo_write(s16 *data, int len);
 
 /*
  * Called from the main loop.
  */
 int fifo_read(s16 *out, int samples);
+
+u32 fifo_free(void);
+
+u32 fifo_count(void);
 
 extern volatile u32 rpos;
 extern volatile u32 wpos;
