@@ -3,8 +3,9 @@
 
 #include <gctypes.h>
 
-#define FIFO_SIZE 16384
+#define FIFO_SIZE (1<<16)
 #define FIFO_MASK (FIFO_SIZE-1)
+#define FIFO_HIGH_WATER (FIFO_SIZE - 2048)
 
 void fifo_init(void);
 

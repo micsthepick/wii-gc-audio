@@ -7,7 +7,7 @@
 
 u32 underruns = 0;
 
-#define AUDIO_SAMPLES 8192
+#define AUDIO_SAMPLES 7680
 
 static s16 audio_buffer[AUDIO_SAMPLES * 2]
     __attribute__((aligned(32)));

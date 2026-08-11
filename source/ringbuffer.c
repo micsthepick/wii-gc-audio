@@ -3,11 +3,6 @@
 
 #include <string.h>
 
-/*
- * FIFO_SIZE is the number of mono samples.
- * Each entry is stored as L/R s16, so the actual array
- * contains FIFO_SIZE * 2 s16 values.
- */
 static s16 fifo[FIFO_SIZE * 2];
 
 volatile u32 rpos;

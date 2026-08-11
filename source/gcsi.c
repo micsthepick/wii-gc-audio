@@ -20,10 +20,11 @@ static void si_transfer_callback(s32 chan, u32 error)
 
     opus_transport_push(si_response, 128);
 
-    if (fifo_count() >= FIFO_SIZE * 3 / 4) {
+    if (fifo_count() >= FIFO_HIGH_WATER) {
         stalled = 1;
         return;
     }
+
     si_poll();
 }
 
