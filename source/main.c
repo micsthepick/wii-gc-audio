@@ -71,6 +71,7 @@ static void print_stats(void)
         opus_errors,
         underruns
     );
+    printf("fifo=%u\n", fifo_count());
 
     si_callback_count = 0;
     opus_count = 0;
