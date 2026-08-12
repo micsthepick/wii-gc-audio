@@ -63,19 +63,25 @@ static void print_stats(void)
         return;
 
     printf(
-        "SI: %.1f/s %.1f kbit/s | "
-        "Opus: %.1f/s errors=%u underruns=%u\n",
-        si_callback_count * 1000.0f / ms,
-        si_callback_count * 128 * 8.0f / ms,
+        "SI: %.1f kbit/s errors=%u last=%08x "
+        "Opus: %.1f/s errors=%u last=%d underruns=%u\n",
+        si_callback_count * 1024.0f / ms,
+        si_error_count,
+        si_last_error,
         opus_count * 1000.0f / ms,
         opus_errors,
+        opus_last_error,
         underruns
     );
-    printf("fifo=%u\n", fifo_count());
 
     si_callback_count = 0;
+    si_error_count = 0;
+    si_last_error = 0;
     opus_count = 0;
     opus_errors = 0;
+    opus_last_error = 0;
+    opus_last_packet_samples = 0;
+    opus_last_packet_length = 0;
     underruns = 0;
     stats_time = now;
 }

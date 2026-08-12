@@ -7,6 +7,8 @@
 #define OPUS_TRANSFER_SIZE     128
 #define OPUS_TRANSFER_HEADER   1
 #define OPUS_RECORD_HEADER     3
+#define OPUS_TRANSFER_NEW_STREAM 0x80
+#define OPUS_TRANSFER_SEQUENCE_MASK 0x7f
 
 #include <stdint.h>
 
@@ -16,6 +18,5 @@ void opus_transport_process(void);
 int queue_full(void);
 int queue_empty(void);
 int opus_transport_needs_backpressure(void);
-
 
 #endif

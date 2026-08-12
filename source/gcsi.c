@@ -4,6 +4,8 @@
 
 
 volatile u32 si_callback_count = 0;
+volatile u32 si_error_count = 0;
+volatile u32 si_last_error = 0;
 
 static u8 si_response[128] __attribute__((aligned(32)));
 
@@ -14,11 +16,14 @@ static u8 si_request[1] = {
 static void si_transfer_callback(s32 chan, u32 error)
 {
     (void)chan;
-    (void)error;
-
     si_callback_count++;
 
-    opus_transport_push(si_response, 128);
+    if (error != 0) {
+        si_error_count++;
+        si_last_error = error;
+    } else {
+        opus_transport_push(si_response, 128);
+    }
 
     if (fifo_count() >= FIFO_HIGH_WATER ||
         opus_transport_needs_backpressure()) {

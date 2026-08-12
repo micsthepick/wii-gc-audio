@@ -15,6 +15,8 @@ PCM_BYTES_PER_FRAME = FRAME_SIZE * CHANNELS * 2
 TRANSFER_SIZE = 128
 TRANSFER_HEADER_SIZE = 1
 RECORD_HEADER_SIZE = 3
+TRANSFER_NEW_STREAM = 0x80
+TRANSFER_SEQUENCE_MASK = 0x7f
 
 OPUS_MAX_PACKET = 1500
 
@@ -43,11 +45,12 @@ def main():
     encoder.bitrate = int(sys.argv[1]) if len(sys.argv) > 1 else 64000
 
     transfer_seq = 0
+    new_stream = True
     opus_seq = 0
     transfer = bytearray()
 
     def emit_transfer(pad=False):
-        nonlocal transfer_seq, transfer
+        nonlocal transfer_seq, transfer, new_stream
 
         payload_size = TRANSFER_SIZE - TRANSFER_HEADER_SIZE
         if pad:
@@ -56,9 +59,14 @@ def main():
         if len(transfer) != payload_size:
             return
 
-        sys.stdout.buffer.write(bytes([transfer_seq]) + transfer)
+        transfer_header = transfer_seq
+        if new_stream:
+            transfer_header |= TRANSFER_NEW_STREAM
+
+        sys.stdout.buffer.write(bytes([transfer_header]) + transfer)
         sys.stdout.buffer.flush()
-        transfer_seq = (transfer_seq + 1) & 0xff
+        transfer_seq = (transfer_seq + 1) & TRANSFER_SEQUENCE_MASK
+        new_stream = False
         transfer = bytearray()
 
     while True:

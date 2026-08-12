@@ -17,6 +17,8 @@ TRANSFER_SIZE = 128
 TRANSFER_HEADER_SIZE = 1
 RECORD_HEADER_SIZE = 3
 OPUS_MAX_PACKET = 1500
+TRANSFER_NEW_STREAM = 0x80
+TRANSFER_SEQUENCE_MASK = 0x7f
 
 
 def read_exact(stream, size):
@@ -31,8 +33,13 @@ def read_exact(stream, size):
     return bytes(data)
 
 
-def seq_distance(old, new):
-    """Number of sequence values strictly between old and new, modulo 256."""
+def transfer_seq_distance(old, new):
+    """Number of transfer sequence values between old and new, modulo 128."""
+    return ((new - old) & TRANSFER_SEQUENCE_MASK) - 1
+
+
+def opus_seq_distance(old, new):
+    """Number of Opus sequence values between old and new, modulo 256."""
     return ((new - old) & 0xff) - 1
 
 
@@ -67,6 +74,7 @@ def main():
     decoder = opuslib.Decoder(args.sample_rate, args.channels)
 
     last_transfer_seq = None
+    new_stream_seq = None
     last_decoded_opus_seq = None
 
     assembling_seq = None
@@ -110,7 +118,7 @@ def main():
         nonlocal last_decoded_opus_seq, packets
 
         if last_decoded_opus_seq is not None:
-            missing = seq_distance(last_decoded_opus_seq, opus_seq)
+            missing = opus_seq_distance(last_decoded_opus_seq, opus_seq)
             if missing < 0:
                 # Duplicate of the most recently decoded packet.
                 return
@@ -138,14 +146,28 @@ def main():
             break
 
         transfers += 1
-        transfer_seq = transfer[0]
+        transfer_header = transfer[0]
+        transfer_seq = transfer_header & TRANSFER_SEQUENCE_MASK
         payload = transfer[TRANSFER_HEADER_SIZE:]
 
-        if last_transfer_seq is not None:
-            missing = seq_distance(last_transfer_seq, transfer_seq)
+        if transfer_header & TRANSFER_NEW_STREAM:
+            if new_stream_seq == transfer_seq:
+                continue
 
-            if missing < 0:
-                report(f"discarding duplicate transfer {transfer_seq}")
+            decoder = opuslib.Decoder(args.sample_rate, args.channels)
+            reset_assembly()
+            last_transfer_seq = None
+            last_decoded_opus_seq = None
+            reject_seq = None
+            new_stream_seq = transfer_seq
+        else:
+            new_stream_seq = None
+
+        if last_transfer_seq is not None:
+            missing = transfer_seq_distance(last_transfer_seq, transfer_seq)
+
+            if missing < 0 or missing >= 63:
+                report(f"discarding duplicate/stale transfer {transfer_seq}")
                 continue
 
             if missing:
