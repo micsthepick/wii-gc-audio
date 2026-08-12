@@ -28,13 +28,13 @@ static uint16_t expected_sequence;
 static int have_sequence;
 
 
-static int queue_empty(void)
+int queue_empty(void)
 {
     return queue_read == queue_write;
 }
 
 
-static int queue_full(void)
+int queue_full(void)
 {
     return (queue_write - queue_read) >= OPUS_PACKET_QUEUE_SIZE;
 }
@@ -218,6 +218,7 @@ void opus_transport_process(void)
                     }
 
                 } else {
+                    have_sequence = 0;
                     printf(
                         "Transport: skipped large gap to %u\n",
                         packet->sequence

@@ -11,5 +11,8 @@
 void opus_transport_init(void);
 void opus_transport_push(const uint8_t *data, unsigned len);
 void opus_transport_process(void);
+int queue_full(void);
+int queue_empty(void);
+
 
 #endif
