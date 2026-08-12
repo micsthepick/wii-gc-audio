@@ -63,7 +63,7 @@ static void print_stats(void)
         return;
 
     printf(
-        "SI: %.1f kbit/s errors=%u last=%08x "
+        "SI: %.1f kbit/s errors=%u last=%d "
         "Opus: %.1f/s errors=%u last=%d underruns=%u\n",
         si_callback_count * 1024.0f / ms,
         si_error_count,
