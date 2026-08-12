@@ -70,10 +70,7 @@ int fifo_read(s16 *out, int samples)
 
     rpos = r + actual;
 
-    if (stalled) {
-        si_poll();
-        stalled = 0;
-    }
+    si_maybe_resume();
 
     return actual;
 }

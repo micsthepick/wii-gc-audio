@@ -20,7 +20,8 @@ static void si_transfer_callback(s32 chan, u32 error)
 
     opus_transport_push(si_response, 128);
 
-    if (fifo_count() >= FIFO_HIGH_WATER) {
+    if (fifo_count() >= FIFO_HIGH_WATER ||
+        opus_transport_needs_backpressure()) {
         stalled = 1;
         return;
     }
@@ -37,6 +38,19 @@ int si_poll(void)
         si_response,
         128,        // 128 RX bytes
         si_transfer_callback,
-        0
+        1000        // At most one poll per millisecond
     );
+}
+
+void si_maybe_resume(void)
+{
+    if (!stalled ||
+        fifo_count() >= FIFO_HIGH_WATER ||
+        opus_transport_needs_backpressure())
+        return;
+
+    stalled = 0;
+
+    if (!si_poll())
+        stalled = 1;
 }

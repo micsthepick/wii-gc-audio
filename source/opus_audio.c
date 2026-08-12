@@ -1,7 +1,7 @@
 #include "opus_audio.h"
 #include "ringbuffer.h"
 
-#include <opus.h>
+#include <opus/opus.h>
 
 volatile u32 opus_errors = 0;
 volatile u32 opus_count = 0;

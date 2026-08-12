@@ -13,8 +13,8 @@ FRAME_SIZE = 960
 PCM_BYTES_PER_FRAME = FRAME_SIZE * CHANNELS * 2
 
 TRANSFER_SIZE = 128
-HEADER_SIZE = 4
-PAYLOAD_SIZE = TRANSFER_SIZE - HEADER_SIZE
+TRANSFER_HEADER_SIZE = 1
+RECORD_HEADER_SIZE = 3
 
 OPUS_MAX_PACKET = 1500
 
@@ -42,7 +42,24 @@ def main():
 
     encoder.bitrate = int(sys.argv[1]) if len(sys.argv) > 1 else 64000
 
-    seq = 0
+    transfer_seq = 0
+    opus_seq = 0
+    transfer = bytearray()
+
+    def emit_transfer(pad=False):
+        nonlocal transfer_seq, transfer
+
+        payload_size = TRANSFER_SIZE - TRANSFER_HEADER_SIZE
+        if pad:
+            transfer.extend(b'\x00' * (payload_size - len(transfer)))
+
+        if len(transfer) != payload_size:
+            return
+
+        sys.stdout.buffer.write(bytes([transfer_seq]) + transfer)
+        sys.stdout.buffer.flush()
+        transfer_seq = (transfer_seq + 1) & 0xff
+        transfer = bytearray()
 
     while True:
         pcm = read_exact(
@@ -51,6 +68,8 @@ def main():
         )
 
         if pcm is None:
+            if transfer:
+                emit_transfer(pad=True)
             break
 
         packet = encoder.encode(
@@ -68,31 +87,24 @@ def main():
         offset = 0
 
         while offset < packet_len:
-            chunk = packet[
-                offset:
-                offset + PAYLOAD_SIZE
-            ]
+            payload_size = TRANSFER_SIZE - TRANSFER_HEADER_SIZE
+            space = payload_size - len(transfer)
 
-            offset += len(chunk)
+            # A record needs its header and at least one data byte.
+            if space < RECORD_HEADER_SIZE + 1:
+                emit_transfer(pad=True)
+                space = payload_size
 
-            # Pad final transfer.
-            chunk = chunk.ljust(
-                PAYLOAD_SIZE,
-                b'\x00',
-            )
+            transfer.extend(struct.pack('<BH', opus_seq, packet_len))
+            space -= RECORD_HEADER_SIZE
 
-            transfer = struct.pack(
-                '<HH',
-                seq,
-                packet_len,
-            ) + chunk
+            chunk_len = min(packet_len - offset, space)
+            transfer.extend(packet[offset:offset + chunk_len])
+            offset += chunk_len
 
-            assert len(transfer) == TRANSFER_SIZE
+            emit_transfer()
 
-            sys.stdout.buffer.write(transfer)
-            sys.stdout.buffer.flush()
-
-        seq = (seq + 1) & 0xffff
+        opus_seq = (opus_seq + 1) & 0xff
 
 
 if __name__ == "__main__":
