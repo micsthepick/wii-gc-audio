@@ -2,9 +2,13 @@
 #include "ringbuffer.h"
 #include "opus_transport.h"
 
+#include <ogc/irq.h>
+
 volatile u32 si_callback_count = 0;
 volatile u32 si_error_count = 0;
 volatile u32 si_last_error = 0;
+
+static volatile int si_in_flight = 0;
 
 static u8 si_response[128] __attribute__((aligned(32)));
 
@@ -16,6 +20,8 @@ static void si_transfer_callback(s32 chan, u32 error)
 {
     (void)chan;
 
+    /* The response buffer is no longer owned by the SI transfer. */
+    si_in_flight = 0;
     si_callback_count++;
 
     if (error != 0) {
@@ -33,12 +39,19 @@ static void si_transfer_callback(s32 chan, u32 error)
 
 int si_poll(void)
 {
-    if (fifo_count() >= FIFO_HIGH_WATER ||
+    u32 level = IRQ_Disable();
+
+    if (si_in_flight ||
+        fifo_count() >= FIFO_HIGH_WATER ||
         opus_transport_needs_backpressure()) {
+        IRQ_Restore(level);
         return 0;
     }
 
-    return SI_Transfer(
+    /* Reserve the shared response buffer before starting async SI I/O. */
+    si_in_flight = 1;
+
+    if (!SI_Transfer(
         0,
         si_request,
         1,          // 1 TX byte
@@ -46,7 +59,14 @@ int si_poll(void)
         128,        // 128 RX bytes
         si_transfer_callback,
         1000        // At most one poll per millisecond
-    );
+    )) {
+        si_in_flight = 0;
+        IRQ_Restore(level);
+        return 0;
+    }
+
+    IRQ_Restore(level);
+    return 1;
 }
 
 void si_service(void)
