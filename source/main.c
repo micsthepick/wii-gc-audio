@@ -11,6 +11,8 @@
 #include "opus_audio.h"
 #include "opus_transport.h"
 
+#define TICKS_PER_SECOND 18225000ULL
+
 static void *xfb = NULL;
 static GXRModeObj *rmode = NULL;
 
@@ -44,6 +46,46 @@ static void video_init(void)
         VIDEO_WaitVSync();
 }
 
+static u64 stats_time;
+
+static void print_stats(void)
+{
+    u64 now = gettime();
+
+    if (stats_time == 0) {
+        stats_time = now;
+        return;
+    }
+
+    u32 ms = diff_msec(stats_time, now);
+
+    if (ms < 5000)
+        return;
+
+    printf(
+        "SI: %.1f kbit/s errors=%u last=%d "
+        "Opus: %.1f/s errors=%u last=%d underruns=%u\n",
+        si_callback_count * 1024.0f / ms,
+        si_error_count,
+        si_last_error,
+        opus_count * 1000.0f / ms,
+        opus_errors,
+        opus_last_error,
+        underruns
+    );
+
+    si_callback_count = 0;
+    si_error_count = 0;
+    si_last_error = 0;
+    opus_count = 0;
+    opus_errors = 0;
+    opus_last_error = 0;
+    opus_last_packet_samples = 0;
+    opus_last_packet_length = 0;
+    underruns = 0;
+    stats_time = now;
+}
+
 int main(int argc, char **argv)
 {
     SYS_Init();
@@ -59,10 +101,12 @@ int main(int argc, char **argv)
     opus_audio_init();
     opus_transport_init();
 
+    // first poll (next poll starts from cb)
+    si_poll();
 
     while (SYS_MainLoop()) {
-        si_service();
         opus_transport_process();
+        print_stats();
     }
 
     return 0;
