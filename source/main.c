@@ -101,10 +101,8 @@ int main(int argc, char **argv)
     opus_audio_init();
     opus_transport_init();
 
-    // first poll (next poll starts from cb)
-    si_poll();
-
     while (SYS_MainLoop()) {
+        si_service();
         opus_transport_process();
         print_stats();
     }

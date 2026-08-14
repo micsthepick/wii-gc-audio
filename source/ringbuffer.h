@@ -2,10 +2,16 @@
 #define RINGBUFFER_H
 
 #include <gctypes.h>
+#include "opus_audio.h"
 
 #define FIFO_SIZE (1<<12)
 #define FIFO_MASK (FIFO_SIZE-1)
 #define FIFO_HIGH_WATER (FIFO_SIZE - 2048)
+
+_Static_assert(
+    FIFO_SIZE >= OPUS_MAX_FRAME_SIZE,
+    "FIFO must hold the largest Opus frame"
+);
 
 void fifo_init(void);
 

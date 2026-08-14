@@ -8,7 +8,7 @@
 #define OPUS_SAMPLE_RATE 48000
 #define OPUS_CHANNELS    2
 #define OPUS_FRAME_SIZE  960
-#define OPUS_MAX_FRAME_SIZE 5760
+#define OPUS_MAX_FRAME_SIZE OPUS_FRAME_SIZE
 
 int opus_audio_init(void);
 void opus_audio_reset(void);

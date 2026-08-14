@@ -60,7 +60,7 @@ c = b'w'
 
 while True:
     if c == b'w':
-        for _ in range(8):
+        for _ in range(64):
             samples = read_exact(128)
             if samples is None:
                 sys.exit(0)

@@ -2,7 +2,6 @@
 #include "ringbuffer.h"
 #include "opus_transport.h"
 
-
 volatile u32 si_callback_count = 0;
 volatile u32 si_error_count = 0;
 volatile u32 si_last_error = 0;
@@ -16,6 +15,7 @@ static u8 si_request[1] = {
 static void si_transfer_callback(s32 chan, u32 error)
 {
     (void)chan;
+
     si_callback_count++;
 
     if (error != 0) {
@@ -28,14 +28,16 @@ static void si_transfer_callback(s32 chan, u32 error)
     if (fifo_count() >= FIFO_HIGH_WATER ||
         opus_transport_needs_backpressure()) {
         stalled = 1;
-        return;
     }
-
-    si_poll();
 }
 
 int si_poll(void)
 {
+    if (fifo_count() >= FIFO_HIGH_WATER ||
+        opus_transport_needs_backpressure()) {
+        return 0;
+    }
+
     return SI_Transfer(
         0,
         si_request,
@@ -47,15 +49,20 @@ int si_poll(void)
     );
 }
 
-void si_maybe_resume(void)
+void si_service(void)
 {
-    if (!stalled ||
-        fifo_count() >= FIFO_HIGH_WATER ||
-        opus_transport_needs_backpressure())
+    if (fifo_count() >= FIFO_HIGH_WATER ||
+        opus_transport_needs_backpressure()) {
+        stalled = 1;
         return;
+    }
 
     stalled = 0;
+    si_poll();
+}
 
-    if (!si_poll())
-        stalled = 1;
+void si_maybe_resume(void)
+{
+    if (stalled)
+        si_service();
 }

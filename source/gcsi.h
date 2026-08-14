@@ -5,6 +5,7 @@
 #include <ogc/si.h>
 
 int si_poll(void);
+void si_service(void);
 void si_maybe_resume(void);
 
 extern volatile int stalled;
