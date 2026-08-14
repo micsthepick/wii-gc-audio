@@ -4,7 +4,7 @@
 #include <gctypes.h>
 #include "opus_audio.h"
 
-#define FIFO_SIZE (1<<12)
+#define FIFO_SIZE (1<<14)
 #define FIFO_MASK (FIFO_SIZE-1)
 #define FIFO_HIGH_WATER (FIFO_SIZE - 2048)
 
